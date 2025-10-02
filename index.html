@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GameVault-Video Game Info Finder</title>
+    
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .spinner {
+            border-color: #4A5568; 
+            
+            border-top-color: #ef4444; 
+            animation: spin 1s linear infinite;
+        }
+        
+        .modal-overlay {
+            transition: opacity 0.3s ease;
+        }
+        .game-card-clickable {
+            cursor: pointer;
+        }
+        
+        /* Animation for game cards sliding in from the bottom */
+        @keyframes slide-in-bottom {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .game-card-animate {
+            opacity: 0; /* Start hidden before animation */
+            animation: slide-in-bottom 0.6s ease-out forwards;
+        }
+        /* Custom scrollbar for screenshot gallery */
+        .screenshot-gallery::-webkit-scrollbar {
+            height: 8px;
+        }
+        .screenshot-gallery::-webkit-scrollbar-track {
+            background: #2d3748;
+        }
+        .screenshot-gallery::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 4px;
+        }
+        .screenshot-gallery::-webkit-scrollbar-thumb:hover {
+            background: #718096;
+        }
+
+        /* Base styles for dark mode */
+        .dark-mode {
+            --bg-color: #000000;
+            --text-color: #ffffff;
+            --card-bg: #1f2937;
+            --header-from: #ef4444; /* Red */
+            --header-to: #b91c1c;   /* Darker Red */
+            --subtext-color: #9ca3af;
+            --search-bg: #1f2937;
+            --modal-bg: #111827;
+            --nav-active-color: #ef4444;
+            --glow-color: rgba(239, 68, 68, 0.4);
+        }
+        
+        body.dark-mode {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+        .dark-mode .bg-gradient-to-r.from-red-500.to-red-800 {
+            background-image: linear-gradient(to right, var(--header-from), var(--header-to));
+        }
+        .dark-mode .bg-red-600 { background-color: var(--header-from) !important; }
+        .dark-mode .hover\:bg-red-700:hover { background-color: var(--header-to) !important; }
+        .dark-mode .bg-gray-800 { background-color: var(--card-bg) !important; }
+        .dark-mode .search-bar-bg { background-color: var(--search-bg) !important; }
+        .dark-mode .modal-bg { background-color: var(--modal-bg) !important; }
+        .dark-mode .nav-link.active { color: var(--nav-active-color) !important; border-color: var(--nav-active-color) !important; }
+        .dark-mode .hover\:shadow-red-500\/40:hover { box-shadow: 0 0 15px 5px var(--glow-color); }
+
+
+        /* Light mode styles */
+        .light-mode {
+            --bg-color: #ffffff;
+            --text-color: #1f2937;
+            --card-bg: #f9fafb;
+            --header-from: #dc2626;
+            --header-to: #991b1b;
+            --subtext-color: #4b5563;
+            --search-bg: #f3f4f6;
+            --modal-bg: #ffffff;
+            --nav-active-color: #dc2626;
+        }
+
+        body.light-mode {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            background-image: none;
+        }
+        .light-mode .bg-black { background-color: var(--bg-color) !important; background-image: none !important; }
+        .light-mode .text-white { color: var(--text-color) !important; }
+        .light-mode .text-gray-300 { color: var(--text-color) !important; }
+        .light-mode .text-gray-400 { color: var(--subtext-color) !important; }
+        .light-mode .bg-gradient-to-r.from-red-500.to-red-800 {
+            background-image: linear-gradient(to right, var(--header-from), var(--header-to));
+        }
+        .light-mode .bg-gray-800 { background-color: var(--card-bg) !important; }
+        .light-mode .search-bar-bg { background-color: var(--search-bg) !important; }
+        .light-mode .modal-bg { background-color: var(--modal-bg) !important; }
+        .light-mode .border-gray-700 { border-color: #e5e7eb !important; }
+        .light-mode .text-red-400 { color: #ef4444 !important; }
+        .light-mode .prose-invert { color: #374151 !important; }
+        .light-mode .nav-link.active { color: var(--nav-active-color) !important; border-color: var(--nav-active-color) !important; }
+        .light-mode .nav-link:not(.active) { color: var(--subtext-color) !important; }
+
+    </style>
+</head>
+<body class="antialiased">
+    <!-- Theme toggle button -->
+    <div class="absolute top-4 right-4 z-10">
+        <button id="theme-toggle" class="p-2 rounded-full bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-white">
+            <!-- Sun Icon (Light) -->
+            <svg id="theme-icon-light" class="hidden h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            <!-- Moon Icon (Dark) -->
+            <svg id="theme-icon-dark" class="hidden h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+        </button>
+    </div>
+
+    <!-- Main container that centers everything on the page -->
+    <div class="container mx-auto px-4 py-8 md:py-12">
+
+        <!-- Header Section: The main title of the app -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-red-800">
+                GameVault
+            </h1>
+            <p class="text-gray-400 mt-2">Unlock the World of Games</p>
+        </header>
+
+        <!-- Search Bar Section -->
+        <div class="max-w-2xl mx-auto mb-8">
+            <div class="flex items-center bg-gray-800 search-bar-bg rounded-full shadow-lg p-2">
+                <input 
+                    id="searchInput" 
+                    type="text" 
+                    placeholder="Search for a game (e.g., 'Cyberpunk 2077')" 
+                    class="w-full bg-transparent text-white placeholder-gray-500 focus:outline-none px-4 py-2"
+                >
+                <button 
+                    id="searchButton" 
+                    class="bg-red-600 hover:bg-red-700 rounded-full text-white font-semibold px-6 py-2 transition duration-300 ease-in-out transform hover:scale-105"
+                >
+                    Search
+                </button>
+            </div>
+        </div>
+
+        <!-- Categories Navigation -->
+        <nav class="flex justify-center space-x-4 md:space-x-8 mb-10 border-b border-gray-700 pb-4">
+            <a href="#" class="nav-link active text-lg font-semibold border-b-2 pb-1" data-category="trending">Trending</a>
+            <a href="#" class="nav-link text-lg font-semibold text-gray-400 hover:text-red-500 transition-colors" data-category="new">New Releases</a>
+            <a href="#" class="nav-link text-lg font-semibold text-gray-400 hover:text-red-500 transition-colors" data-category="top">Top Rated</a>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main id="resultsContainer">
+            <!-- Title for trending/search results. -->
+            <h2 id="resultsTitle" class="text-3xl font-bold text-center mb-8 text-gray-300"></h2>
+            
+            <!-- Loading Spinner -->
+            <div id="loader" class="hidden justify-center items-center py-10">
+                <div class="spinner w-12 h-12 border-4 rounded-full"></div>
+            </div>
+
+            <!-- Error/No Results Message -->
+            <div id="message" class="hidden text-center text-yellow-400"></div>
+
+            <!-- Game Results Grid -->
+            <div id="gamesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- Game cards will be dynamically inserted here -->
+            </div>
+        </main>
+        
+        <!-- Pagination Section -->
+        <footer id="pagination" class="flex justify-center items-center space-x-4 mt-10 hidden">
+            <button id="prevButton" class="bg-gray-700 hover:bg-gray-600 rounded-lg text-white font-semibold px-5 py-2 transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                Previous
+            </button>
+            <button id="nextButton" class="bg-gray-700 hover:bg-gray-600 rounded-lg text-white font-semibold px-5 py-2 transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                Next
+            </button>
+        </footer>
+    </div>
+
+    <!-- Universal Modal for Details -->
+    <div id="universalModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center hidden opacity-0 z-50 p-4">
+        <div class="bg-gray-800 modal-bg rounded-lg shadow-2xl p-6 w-11/12 max-w-4xl transform transition-transform duration-300 scale-95 max-h-full overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-gray-700 pb-3 mb-4">
+                <h2 id="modalTitle" class="text-2xl font-bold text-white">Modal Title</h2>
+                <button id="closeModalButton" class="text-gray-400 hover:text-white text-3xl">&times;</button>
+            </div>
+            <div id="modalContent" class="text-gray-300">
+                
+            </div>
+        </div>
+    </div>
+
+
+    
+    <script>
+        const rawgApiKey = '7f0d7049d9254279a524fb29c4180253'; 
+        const rawgBaseUrl = 'https://api.rawg.io/api/games';
+
+        let nextPageUrl = null;
+        let prevPageUrl = null;
+        
+        let currentScreenshots = [];
+        let currentScreenshotIndex = 0;
+
+        const searchInput = document.getElementById('searchInput');
+        const searchButton = document.getElementById('searchButton');
+        const gamesGrid = document.getElementById('gamesGrid');
+        const loader = document.getElementById('loader');
+        const message = document.getElementById('message');
+        const resultsTitle = document.getElementById('resultsTitle'); 
+        const pagination = document.getElementById('pagination');
+        const nextButton = document.getElementById('nextButton');
+        const prevButton = document.getElementById('prevButton');
+        
+        const universalModal = document.getElementById('universalModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalContent = document.getElementById('modalContent');
+        const closeModalButton = document.getElementById('closeModalButton');
+
+        const themeToggleButton = document.getElementById('theme-toggle');
+        const themeIconLight = document.getElementById('theme-icon-light');
+        const themeIconDark = document.getElementById('theme-icon-dark');
+        
+        const navContainer = document.querySelector('nav');
+
+        // Prepare dates for API queries
+        const today = new Date();
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(today.getFullYear() - 1);
+        const formatDate = (date) => date.toISOString().split('T')[0];
+        const todayStr = formatDate(today);
+        const oneYearAgoStr = formatDate(oneYearAgo);
+
+        const apiEndpoints = {
+            trending: `${rawgBaseUrl}?key=${rawgApiKey}&dates=${oneYearAgoStr},${todayStr}&ordering=-added&page_size=16`,
+            new: `${rawgBaseUrl}?key=${rawgApiKey}&dates=${oneYearAgoStr},${todayStr}&ordering=-released&page_size=16`,
+            top: `${rawgBaseUrl}?key=${rawgApiKey}&ordering=-rating&page_size=16`
+        };
+
+        async function fetchGames(url, showPagination = true) {
+            loader.classList.remove('hidden');
+            loader.classList.add('flex');
+            gamesGrid.innerHTML = '';
+            message.classList.add('hidden');
+            pagination.classList.add('hidden'); // Always hide pagination initially
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+
+                loader.classList.add('hidden');
+                loader.classList.remove('flex');
+
+                if (data.results && data.results.length > 0) {
+                    displayGames(data.results);
+                    if (showPagination) {
+                        nextPageUrl = data.next;
+                        prevPageUrl = data.previous;
+                        pagination.classList.remove('hidden');
+                        nextButton.disabled = !nextPageUrl;
+                        prevButton.disabled = !prevPageUrl;
+                    }
+                } else {
+                    showMessage('No games found. Try another search!');
+                }
+            } catch (error) {
+                console.error("Error fetching RAWG data:", error);
+                loader.classList.add('hidden');
+                loader.classList.remove('flex');
+                showMessage('Could not fetch game data. Please check your API key and network connection.');
+            }
+        }
+
+        function displayGames(games) {
+            gamesGrid.innerHTML = '';
+            games.forEach((game, index) => {
+                const gameCard = document.createElement('div');
+                gameCard.className = 'game-card-clickable game-card-animate bg-gray-800 rounded-lg overflow-hidden shadow-lg flex flex-col transform hover:-translate-y-4 hover:scale-105 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/40';
+                gameCard.dataset.gameid = game.id;
+                gameCard.style.animationDelay = `${index * 100}ms`;
+                
+                const platforms = game.platforms ? game.platforms.map(p => p.platform.name).join(', ') : 'N/A';
+
+                gameCard.innerHTML = `
+                    <img src="${game.background_image || 'https://placehold.co/600x400/1F2937/7C8A9E?text=No+Image'}" alt="${game.name}" class="w-full h-48 object-cover">
+                    <div class="p-4 flex-grow">
+                        <h3 class="text-xl font-bold mb-2 truncate text-white">${game.name}</h3>
+                        <p class="text-gray-400 text-sm mb-2">Released: ${game.released || 'N/A'}</p>
+                        <div class="flex items-center mb-3">
+                            <span class="text-yellow-400 font-bold">${game.rating ? '⭐ ' + game.rating : 'No Rating'}</span>
+                            <span class="text-gray-500 ml-1">/ 5</span>
+                        </div>
+                        <p class="text-gray-400 text-xs truncate"><strong>Platforms:</strong> ${platforms}</p>
+                    </div>
+                `;
+                gamesGrid.appendChild(gameCard);
+            });
+        }
+        
+        async function fetchGameDetails(gameId) {
+            const loadingHTML = `<div class="flex justify-center items-center py-8"><div class="spinner w-10 h-10 border-4 rounded-full"></div><p class="ml-4">Fetching game details...</p></div>`;
+            showModal("Loading...", loadingHTML);
+
+            try {
+                const detailsUrl = `${rawgBaseUrl}/${gameId}?key=${rawgApiKey}`;
+                const screenshotsUrl = `${rawgBaseUrl}/${gameId}/screenshots?key=${rawgApiKey}`;
+
+                const [detailsResponse, screenshotsResponse] = await Promise.all([fetch(detailsUrl), fetch(screenshotsUrl)]);
+
+                if (!detailsResponse.ok) throw new Error(`Details fetch failed: ${detailsResponse.status}`);
+                if (!screenshotsResponse.ok) throw new Error(`Screenshots fetch failed: ${screenshotsResponse.status}`);
+
+                const gameData = await detailsResponse.json();
+                const screenshotsData = await screenshotsResponse.json();
+
+                displayGameDetails(gameData, screenshotsData.results);
+            } catch (error)
+                {
+                console.error("Error fetching game details:", error);
+                modalContent.innerHTML = `<p class="text-red-400">Sorry, I couldn't get the details for this game.</p>`;
+            }
+        }
+
+        function displayGameDetails(data, screenshots) {
+            modalTitle.textContent = data.name;
+            
+            currentScreenshots = screenshots.map(ss => ss.image);
+            currentScreenshotIndex = 0;
+
+            const genres = data.genres ? data.genres.map(g => g.name).join(', ') : 'N/A';
+            const developers = data.developers ? data.developers.map(d => d.name).join(', ') : 'N/A';
+            const publishers = data.publishers ? data.publishers.map(p => p.name).join(', ') : 'N/A';
+            
+            const thumbnailsHTML = currentScreenshots.map((imgSrc, index) => `<img src="${imgSrc}" alt="Thumbnail ${index + 1}" data-index="${index}" class="screenshot-thumbnail h-20 rounded cursor-pointer border-2 border-transparent hover:border-red-500 transition-all duration-200">`).join('');
+            const mainImageUrl = currentScreenshots.length > 0 ? currentScreenshots[0] : (data.background_image || 'https://placehold.co/600x400/1F2937/7C8A9E?text=No+Image');
+
+            modalContent.innerHTML = `
+                <div class="relative mb-4">
+                    <img id="mainScreenshot" src="${mainImageUrl}" alt="${data.name} Screenshot" class="w-full h-auto max-h-[50vh] object-contain rounded-lg">
+                    ${currentScreenshots.length > 1 ? `
+                    <button id="prevScreenshot" class="absolute top-1/2 left-2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-75 transition-opacity"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
+                    <button id="nextScreenshot" class="absolute top-1/2 right-2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-75 transition-opacity"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
+                    ` : ''}
+                </div>
+                ${currentScreenshots.length > 0 ? `<div class="screenshot-gallery flex space-x-3 overflow-x-auto pb-2 mb-4">${thumbnailsHTML}</div>` : ''}
+                <div class="space-y-4 text-base">
+                    <div><strong class="text-red-400">Genres:</strong> ${genres}</div>
+                    <div><strong class="text-red-400">Developers:</strong> ${developers}</div>
+                    <div><strong class="text-red-400">Publishers:</strong> ${publishers}</div>
+                    <div><strong class="text-red-400">ESRB Rating:</strong> ${data.esrb_rating ? data.esrb_rating.name : 'Not Rated'}</div>
+                    <hr class="border-gray-600 my-4">
+                    <div class="prose prose-invert max-w-none">${data.description || 'No description available.'}</div>
+                </div>
+            `;
+            updateActiveThumbnail();
+        }
+
+        function updateScreenshotDisplay() {
+            const mainScreenshot = document.getElementById('mainScreenshot');
+            if (mainScreenshot && currentScreenshots.length > 0) {
+                mainScreenshot.src = currentScreenshots[currentScreenshotIndex];
+                updateActiveThumbnail();
+            }
+        }
+
+        function updateActiveThumbnail() {
+            document.querySelectorAll('.screenshot-thumbnail').forEach(thumb => {
+                if (parseInt(thumb.dataset.index) === currentScreenshotIndex) {
+                    thumb.classList.add('border-red-500');
+                    thumb.classList.remove('border-transparent');
+                    thumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                } else {
+                    thumb.classList.remove('border-red-500');
+                    thumb.classList.add('border-transparent');
+                }
+            });
+        }
+
+        function showMessage(msg) {
+            message.textContent = msg;
+            message.classList.remove('hidden');
+            pagination.classList.add('hidden');
+        }
+
+        function showModal(title, contentHTML) {
+            modalTitle.textContent = title;
+            modalContent.innerHTML = contentHTML;
+            universalModal.classList.remove('hidden');
+            setTimeout(() => {
+                universalModal.classList.remove('opacity-0');
+                universalModal.querySelector('div').classList.remove('scale-95');
+            }, 10);
+        }
+
+        function hideModal() {
+            universalModal.classList.add('opacity-0');
+            universalModal.querySelector('div').classList.add('scale-95');
+            setTimeout(() => {
+                universalModal.classList.add('hidden');
+                currentScreenshots = [];
+                currentScreenshotIndex = 0;
+            }, 300);
+        }
+
+        
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme') || 'dark'; // Default to dark
+            
+            document.body.classList.remove('light-mode', 'dark-mode');
+            themeIconLight.classList.add('hidden');
+            themeIconDark.classList.add('hidden');
+
+            if (savedTheme === 'light') {
+                document.body.classList.add('light-mode');
+                themeIconLight.classList.remove('hidden');
+            } else { // Default to dark
+                document.body.classList.add('dark-mode');
+                themeIconDark.classList.remove('hidden');
+                localStorage.setItem('theme', 'dark');
+            }
+            
+            resultsTitle.textContent = 'Trending';
+            fetchGames(apiEndpoints.trending, false);
+        });
+
+        themeToggleButton.addEventListener('click', () => {
+            const currentTheme = document.body.classList.contains('light-mode') ? 'light' : 'dark';
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            
+            localStorage.setItem('theme', newTheme);
+            
+            document.body.classList.remove('light-mode', 'dark-mode');
+            themeIconLight.classList.add('hidden');
+            themeIconDark.classList.add('hidden');
+
+            if (newTheme === 'light') {
+                document.body.classList.add('light-mode');
+                themeIconLight.classList.remove('hidden');
+            } else {
+                document.body.classList.add('dark-mode');
+                themeIconDark.classList.remove('hidden');
+            }
+        });
+
+        navContainer.addEventListener('click', (event) => {
+            event.preventDefault();
+            const navLink = event.target.closest('.nav-link');
+            if (navLink && !navLink.classList.contains('active')) {
+                const category = navLink.dataset.category;
+
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    link.classList.remove('active', 'border-b-2');
+                });
+                navLink.classList.add('active', 'border-b-2'); 
+
+                resultsTitle.textContent = navLink.textContent;
+                fetchGames(apiEndpoints[category], false);
+            }
+        });
+
+        searchButton.addEventListener('click', () => {
+            const query = searchInput.value.trim();
+            if (query) {
+                resultsTitle.textContent = `Search Results for "${query}"`;
+                const searchUrl = `${rawgBaseUrl}?key=${rawgApiKey}&search=${encodeURIComponent(query)}`;
+                fetchGames(searchUrl, true); // Show pagination for search results
+            }
+        });
+
+        searchInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') searchButton.click();
+        });
+
+        nextButton.addEventListener('click', () => {
+            if (nextPageUrl) fetchGames(nextPageUrl, true);
+        });
+
+        prevButton.addEventListener('click', () => {
+            if (prevPageUrl) fetchGames(prevPageUrl, true);
+        });
+        
+        closeModalButton.addEventListener('click', hideModal);
+        
+        universalModal.addEventListener('click', (event) => {
+            if (event.target === universalModal) hideModal();
+            if (event.target.classList.contains('screenshot-thumbnail')) {
+                currentScreenshotIndex = parseInt(event.target.dataset.index);
+                updateScreenshotDisplay();
+            }
+            const prevBtn = event.target.closest('#prevScreenshot');
+            if (prevBtn) {
+                currentScreenshotIndex = (currentScreenshotIndex - 1 + currentScreenshots.length) % currentScreenshots.length;
+                updateScreenshotDisplay();
+            }
+            const nextBtn = event.target.closest('#nextScreenshot');
+            if (nextBtn) {
+                currentScreenshotIndex = (currentScreenshotIndex + 1) % currentScreenshots.length;
+                updateScreenshotDisplay();
+            }
+        });
+
+        gamesGrid.addEventListener('click', (event) => {
+            const card = event.target.closest('.game-card-clickable');
+            if (card) {
+                const gameId = card.dataset.gameid;
+                fetchGameDetails(gameId);
+            }
+        });
+
+    </script>
+</body>
+</html>
